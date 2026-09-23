@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const BASE_URL = 'http://localhost:8000/api'
+const BASE_URL = 'https://codelens-backend-5gg6.onrender.com/api'
 const client = axios.create({ baseURL: BASE_URL })
 
 export const api = {
