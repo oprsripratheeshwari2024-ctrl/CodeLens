@@ -1,0 +1,70 @@
+<!doctype html><html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CodeLens</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f4ef;--card:#fff;--ink:#1b2333;--mut:#6b7385;--line:#e3dfd3;--navy:#1b2a4a;--gold:#b8892b}
+[data-theme=dark]{--bg:#0f1524;--card:#17203a;--ink:#e8e6df;--mut:#98a0b5;--line:#26314f;--navy:#0a0f1d;--gold:#d4a84a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px Inter,system-ui,sans-serif}
+h1,h2{font-family:'Playfair Display',Georgia,serif;margin:0 0 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;box-shadow:0 2px 10px #0001}
+input,select,textarea,button{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)}
+button{cursor:pointer}.pri{background:var(--gold);color:#fff;border:0;font-weight:600}
+#login{max-width:380px;margin:12vh auto;text-align:center}#login input,#login button{width:100%;margin:6px 0}
+#app{display:grid;grid-template-columns:210px 1fr;min-height:100vh}
+aside{background:var(--navy);padding:18px 10px}aside h1{color:var(--gold);padding:0 10px}
+aside a{display:block;padding:10px 12px;border-radius:7px;cursor:pointer;color:#c9cedb;border-left:3px solid transparent}aside a.on,aside a:hover{background:#ffffff18;color:#fff;border-left-color:var(--gold)}
+main{padding:18px;min-width:0}.bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+textarea{width:100%;height:220px;font:13px/1.5 Consolas,monospace}
+.row{padding:8px 0;border-bottom:1px solid var(--line)}.e{color:#b3261e}.w{color:#b7791f}
+code,pre{font:13px Consolas,monospace;background:var(--bg);padding:2px 6px;border-radius:4px}pre{padding:12px;overflow:auto}
+.big{font:700 42px 'Playfair Display',serif;color:var(--gold)}.add{color:#2f7d4f}.del{color:#b3261e}
+svg text{font:12px Inter,sans-serif;fill:var(--ink);pointer-events:none}svg g{cursor:pointer}
+@media print{aside,.bar,textarea{display:none}#app{display:block}}@media(max-width:700px){#app{grid-template-columns:1fr}}
+#gut{margin:0;padding:9px 6px;text-align:right;color:var(--mut);height:220px;overflow:hidden;font:13px/1.5 Consolas,monospace;border:1px solid var(--line);border-radius:7px 0 0 7px;background:var(--bg);min-width:40px}.bad{color:#b3261e;font-weight:700;background:#b3261e22}#code{white-space:pre;overflow:auto}
+</style><script src="https://cdn.jsdelivr.net/npm/chart.js"></script></head><body>
+<div id="login" class="card"><h1>CodeLens</h1><p>Sign in with your email</p>
+<input id="em" type="email" placeholder="you@example.com">
+<button class="pri" id="go">Continue</button><p id="msg" style="color:var(--mut)"></p></div>
+<div id="app" hidden><aside><h1>CodeLens</h1><nav id="nav"></nav></aside><main>
+<div class="bar"><select id="lang"><option value=python>Python</option><option value=java>Java</option><option value=c>C</option><option value=cpp>C++</option><option value=javascript>JavaScript</option></select>
+<select id="ex"><option value=en>English</option><option value=ta>Tanglish</option><option value=hi>Hindi</option></select>
+<select id="lv"><option value=expert>Expert<option value=beginner>Beginner</select><button class="pri" id="run">Analyze</button><button id="xm">.md</button><button id="xj">.json</button><input type="file" id="up" hidden><button id="upb">Upload</button><button id="pr">PDF</button><button id="sp">🔊 Speak</button><button id="th">🌓</button><button id="out">Logout</button></div>
+<div style="display:flex"><pre id="gut"></pre><textarea id="code" wrap="off" spellcheck="false" placeholder="Paste code here (Ctrl+Enter = Analyze)"></textarea></div>
+<div id="view" class="card" style="margin-top:12px"></div></main></div>
+<script>
+const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+let T=localStorage.tok||"",R=null,tab="Explanation";const N="<p>Paste code and click <b>Analyze</b>.</p>";
+document.documentElement.dataset.theme=localStorage.th||"light";
+async function api(p,b,m="POST"){const r=await fetch("/api/"+p,{method:m,headers:{"Content-Type":"application/json","X-Token":T},body:m=="GET"?undefined:JSON.stringify(b)});const j=await r.json();if(r.status==401)logout();if(!r.ok)throw Error(j.detail||"Error");return j}
+const body=()=>({code:$("#code").value,lang:$("#lang").value,explain:$("#ex").value,level:$("#lv").value});
+const logout=()=>{localStorage.tok=T="";show()};function show(){$("#login").hidden=!!T;$("#app").hidden=!T;if(T)draw()}
+$("#go").onclick=async()=>{try{const j=await api("login",{email:$("#em").value});localStorage.tok=T=j.token;show()}catch(e){$("#msg").textContent=e.message}};
+const list=(a,f)=>a.length?a.map(f).join(""):"<p>None found ✔</p>";
+const P={Explanation:()=>R?list(R.explanation,x=>`<div class=row><code>${x.line}</code> <code>${esc(x.code.trim())}</code><br>${esc(x.text)}</div>`):N,
+Errors:()=>R?list(R.errors,x=>`<div class=row><b class="${x.sev=="error"?"e":"w"}">Line ${x.line}</b> ${esc(x.msg)}</div>`)+(R.heuristic?"<p><i>C-family/JS analysis is heuristic.</i></p>":""):N,
+Security:()=>R?list(R.security,x=>`<div class=row><b class=e>${x.sev}</b> Line ${x.line}: ${esc(x.msg)}</div>`):N,
+"Fix & AI":()=>'<button class=pri onclick=fix()>Generate fix</button><div id=o></div>',
+Flowchart:()=>R?flowSvg(R.flow):N,
+Converter:()=>'<select id=to><option>python<option>java<option>c<option>cpp<option>javascript</select> <button class=pri onclick=conv()>Convert</button><pre id=o></pre>',
+Complexity:()=>R?`<div class=big>${R.score}/100</div><p>Quality score</p><p>Cyclomatic complexity: <b>${R.complexity.cc}</b> (${R.complexity.level})<br>Max nesting depth: <b>${R.complexity.nesting}</b><br>Estimated time: <b>${R.complexity.bigo}</b></p>`:N,
+Similarity:()=>'<textarea id=b placeholder="Paste second code to compare with editor"></textarea><button class=pri onclick=sim()>Compare</button><p id=o></p>',
+History:()=>{setTimeout(hist);return '<input id=q placeholder="Search history" oninput=hist()><div id=h></div>'}};
+async function draw(){$("#nav").innerHTML=Object.keys(P).map(t=>`<a class="${t==tab?"on":""}" onclick="tab='${t}';draw()">${t}</a>`).join("");$("#view").innerHTML=await P[tab]()}
+function flowSvg(f){const h=34,g=22,col={start:"#b8892b",end:"#b8892b",process:"var(--card)",decision:"#1b2a4a",loop:"#2f7d8f"};let s='<defs><marker id=a markerWidth=8 markerHeight=8 refX=6 refY=3 orient=auto><path d="M0 0L6 3L0 6z" fill="#888"/></marker></defs>',pc=null;
+f.forEach((n,i)=>{const w=n.t=="decision"||n.t=="loop"?240:200,x=16+n.d*32,y=10+i*(h+g),cx=x+w/2;
+if(pc)s+=`<path d="M${pc[0]} ${pc[1]}V${y-g/2}H${cx}V${y}" fill=none stroke="#888" marker-end="url(#a)"/>`;
+const sh=n.t=="decision"?`<polygon points="${x},${y+h/2} ${x+20},${y} ${x+w-20},${y} ${x+w},${y+h/2} ${x+w-20},${y+h} ${x+20},${y+h}"`:`<rect x=${x} y=${y} width=${w} height=${h} rx=${n.t=="process"?4:17}`;
+s+=`<g data-l="${n.line}">${sh} fill="${col[n.t]}" stroke="#888"/><text x=${cx} y=${y+h/2+4} text-anchor=middle ${n.t!="process"?'style="fill:#fff"':""}>${esc(n.l)}</text></g>`;pc=[cx,y+h]});
+return `<p>Click any node to see its code line.</p><svg width="${Math.max(...f.map(n=>n.d*32+270))}" height="${f.length*(h+g)+10}">${s}</svg><p id=fi></p>`}
+$("#view").onclick=e=>{const g=e.target.closest("g[data-l]");if(g){const l=+g.dataset.l;$("#fi").textContent=l?`Line ${l}: `+$("#code").value.split("\n")[l-1]:""}};
+async function fix(){try{const j=await api("fix",body());window.F=j.code;$("#o").innerHTML=`<p>${j.ai?"AI-generated fix":"Rule-based fix"}: ${esc(j.changes.join("; ")||"no changes")}</p><pre>${j.diff.map(l=>`<div class="${l[0]=="+"?"add":l[0]=="-"?"del":""}">${esc(l)}</div>`).join("")}</pre><button onclick="$('#code').value=F">Apply to editor</button>`}catch(e){$("#o").textContent=e.message}}
+async function conv(){try{const j=await api("convert",{...body(),to:$("#to").value});$("#o").textContent=j.code||j.note}catch(e){$("#o").textContent=e.message}}
+async function sim(){try{const j=await api("similarity",{...body(),b:$("#b").value});$("#o").textContent=j.pct+"% similar"}catch(e){$("#o").textContent=e.message}}
+async function hist(){const h=await api("history?q="+encodeURIComponent($("#q")?.value||""),null,"GET");$("#h").innerHTML=list(h,x=>`<div class=row><b>${x.lang}</b> · score ${x.score} · ${x.ts} <a href=# onclick="$('#code').value=${esc(JSON.stringify(x.code)).replace(/"/g,"&quot;")};return false">load</a></div>`)}
+$("#run").onclick=async()=>{try{R=await api("analyze",body());draw()}catch(e){$("#view").textContent=e.message}};
+$("#th").onclick=()=>{const t=document.documentElement.dataset.theme=="dark"?"light":"dark";document.documentElement.dataset.theme=localStorage.th=t};
+$("#out").onclick=logout;$("#pr").onclick=()=>print();
+$("#sp").onclick=()=>{speechSynthesis.cancel();if(!R)return;const u=new SpeechSynthesisUtterance(R.explanation.map(x=>x.text).join(". "));u.lang=$("#ex").value=="hi"?"hi-IN":"en-IN";speechSynthesis.speak(u)};
+$("#upb").onclick=()=>$("#up").click();
+$("#up").onchange=async e=>{const f=e.target.files[0];$("#code").value=await f.text();const m={py:"python",java:"java",c:"c",cpp:"cpp",js:"javascript"}[f.name.split(".").pop()];if(m)$("#lang").value=m};
+show();
+</script><script src="extra.js"></script></body></html>
